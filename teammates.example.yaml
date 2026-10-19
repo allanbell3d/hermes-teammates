@@ -6,6 +6,7 @@
 #       hermes-teammates:
 #         settings:
 #           roster_file: teammates.yaml     # relative to this profile's Hermes home, or an absolute path
+#           # or: roster_file: auto         # own teammates.yaml if present, else the root Hermes home's
 #
 # The file replaces the Teammates setting. Each teammate is checked exactly like the setting; problems are
 # listed by /teammates. Names: lowercase letters, digits, - or _, up to 32 characters.

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `roster_file: auto`: use the profile's own `teammates.yaml` when it exists, otherwise the root Hermes home's, so profiles can switch between their own and a shared roster by adding or deleting a file.
+- `roster_file` config problems clip the file path to 500 characters, like the roster's `roster_file` field, so a very long path can no longer push the problem out of the roster reply (review note on #73).
+
 ## 1.1.0 (2026-10-20)
 
 Additive; with `roster_file` unset, tools, arguments and result fields are exactly 1.0's.

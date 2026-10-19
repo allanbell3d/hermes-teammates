@@ -146,6 +146,12 @@ every call, like the other settings. Several profiles can share one roster by po
 `roster_file` is an operator setting: no tool argument can change it. Leave it unset to keep the roster in
 `config.yaml`.
 
+`roster_file: auto` suits hosts with many profiles: each profile uses `teammates.yaml` in its own Hermes home when
+that file exists, otherwise `teammates.yaml` in the root Hermes home (for example `~/.hermes`). Give a profile its own
+roster by adding the file, and return it to the shared one by deleting it, without editing `config.yaml`. Only a
+missing file moves on to the root's: a profile file that exists but is invalid is reported as a config problem.
+`/teammates` shows which file was used. For a file literally named `auto`, write `./auto`.
+
 ## Use
 
 Ask in plain language:

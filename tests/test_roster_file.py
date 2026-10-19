@@ -123,6 +123,13 @@ def test_empty_roster_from_a_bad_file_points_at_the_problem(rig):
     assert 'No teammates in the roster file' in text and 'missing.yaml not found' in text
 
 
+def test_a_very_long_path_keeps_its_problem_in_the_roster(rig, tmp_path):
+    _use(rig, {'roster_file': str(tmp_path / ('a' * 20000 + '.yaml'))})
+    value = rig.service.roster('s')
+    problems = [e for e in value['config_errors'] if e.startswith('roster_file:')]
+    assert problems and all(len(e) < 700 for e in problems) and len(value['roster_file']) == 500
+
+
 def test_intentionally_empty_roster_file_points_at_no_problems(rig):
     from hermes_teammates.teammates_tools import render_roster
     (home() / 'teammates.yaml').write_text('teammates: {}\n', encoding='utf-8')

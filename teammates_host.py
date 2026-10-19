@@ -12,8 +12,11 @@ def lifecycle(ctx):
 def load_roster_file(path, home=None):
     """Read a roster file: (teammates, error, resolved path). A relative path resolves against `home`
     (default: this profile's Hermes home). The file holds one top-level `teammates` mapping, which parse()
-    then validates exactly like the setting; any problem gives an empty roster and an error, never a raise."""
+    then validates exactly like the setting; any problem gives an empty roster and an error, never a raise.
+    `auto` picks the profile's own teammates.yaml when it exists, otherwise the root Hermes home's."""
     from pathlib import Path
+    if path == AUTO:
+        return _load_auto(home)
     try:
         target = Path(path).expanduser()
         if not target.is_absolute():
@@ -22,23 +25,66 @@ def load_roster_file(path, home=None):
                 home = get_hermes_home()
             target = Path(home) / target
     except Exception as exc:
-        return {}, f'roster_file: cannot resolve {path!r} ({type(exc).__name__})', str(path)
+        return {}, f'roster_file: cannot resolve {_shown(repr(path))} ({type(exc).__name__})', str(path)
+    shown = _shown(target)
     try:
         from ruamel.yaml import YAML  # a Hermes dependency
         data = YAML(typ='safe').load(target.read_text(encoding='utf-8'))
     except FileNotFoundError:
-        return {}, f'roster_file: {target} not found', str(target)
+        return {}, f'roster_file: {shown} not found', str(target)
     except OSError as exc:
-        return {}, f'roster_file: cannot read {target} ({exc.strerror or type(exc).__name__})', str(target)
+        return {}, f'roster_file: cannot read {shown} ({exc.strerror or type(exc).__name__})', str(target)
     except UnicodeDecodeError:
-        return {}, f'roster_file: {target} is not UTF-8 text', str(target)
+        return {}, f'roster_file: {shown} is not UTF-8 text', str(target)
     except Exception:
-        return {}, f'roster_file: {target} is not valid YAML', str(target)
+        return {}, f'roster_file: {shown} is not valid YAML', str(target)
     if not isinstance(data, dict) or not isinstance(data.get('teammates'), dict):
-        return {}, f"roster_file: {target} needs a top-level 'teammates' mapping", str(target)
+        return {}, f"roster_file: {shown} needs a top-level 'teammates' mapping", str(target)
     extra = sorted(str(key) for key in data if key != 'teammates')
-    error = f"roster_file: {target} has unknown top-level key(s): {', '.join(extra)}" if extra else None
+    error = f"roster_file: {shown} has unknown top-level key(s): {', '.join(extra)}" if extra else None
     return data['teammates'], error, str(target)
+
+
+AUTO, AUTO_FILE = 'auto', 'teammates.yaml'
+PATH_CHARS = 500  # paths inside config problems are clipped like the roster's roster_file field
+
+
+def _shown(path):
+    return str(path)[:PATH_CHARS]
+
+
+def _root_home(home):
+    """The root Hermes home that `home` belongs to (itself when it is the root)."""
+    from pathlib import Path
+    from hermes_constants import get_default_hermes_root
+    try:
+        return Path(get_default_hermes_root(home=home))
+    except TypeError:  # builds whose helper takes no home
+        return Path(get_default_hermes_root())
+
+
+def _load_auto(home=None):
+    """roster_file: auto. The first teammates.yaml that exists, in the profile's home then the root home.
+    A file that exists but is broken is reported, not skipped; only a missing file moves on to the root's."""
+    from pathlib import Path
+    try:
+        if home is None:
+            from hermes_constants import get_hermes_home
+            home = get_hermes_home()
+        homes = [Path(home)]
+    except Exception as exc:
+        return {}, f'roster_file: auto cannot locate the Hermes home ({type(exc).__name__})', AUTO
+    try:
+        root = _root_home(home)
+        if root.resolve() != homes[0].resolve():
+            homes.append(root)
+    except Exception:
+        pass  # no root helper on this build: the profile's own file only
+    for candidate in (h / AUTO_FILE for h in homes):
+        if candidate.exists():
+            teammates, error, resolved = load_roster_file(str(candidate))
+            return teammates, error, f'{resolved} (auto)'
+    return {}, f"roster_file: auto found no {AUTO_FILE} in {' or '.join(_shown(h) for h in homes)}", AUTO
 
 
 def current_session_id(kwargs):
